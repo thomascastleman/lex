@@ -14,9 +14,12 @@ fn main() {
     l.add_rule(&id_re, |s| Token::new("name", s));
     l.add_rule(&ws_re, |s| Token::new("whitespace", s));
 
-    let tokens = l.lex("hello 10");
+    let tokens = l.lex("hello ^& 10");
 
-    // for tok in tokens {
-    //     println!("{:?}", tok);
-    // }
+    for tok in tokens {
+        match tok {
+            Ok(t) => println!("{:?}", t),
+            Err(e) => { println!("{}", e); break; }
+        }
+    }
 }
