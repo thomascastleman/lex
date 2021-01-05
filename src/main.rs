@@ -1,5 +1,6 @@
 use regex::Regex;
 mod lex;
+mod test;
 use crate::lex::Lexer;
 
 // a possible implementation of a token type

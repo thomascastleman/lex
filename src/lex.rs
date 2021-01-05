@@ -4,7 +4,7 @@ use regex::Regex;
 /// - NoPatterns: tried to lex with no patterns added.
 /// - InvalidToken(idx): token that doesn't match any pattern
 /// 	found at index idx in the input string.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum LexerError {
     NoPatterns,
     InvalidToken(usize),
