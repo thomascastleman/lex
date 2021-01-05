@@ -1,6 +1,0 @@
-Todo.
-
-[x] rewrite so lex() returns a Result<Vec<Token>, LexError>
-[x] abstract over Token implementation
-[x] write tests
-[] docs
