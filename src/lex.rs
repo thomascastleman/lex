@@ -1,24 +1,5 @@
 use regex::Regex;
 
-// ---------------------------------------------------------------------------
-/// TEMP: tokens outputted by the lexer
-/// ultimately this should be generic
-#[derive(Debug)]
-pub struct Token<'a> {
-    name: &'a str,
-    lexeme: &'a str,
-}
-
-impl<'a> Token<'a> {
-    pub fn new(name: &'a str, lexeme: &'a str) -> Token<'a> {
-        Token {
-            name: name,
-            lexeme: lexeme,
-        }
-    }
-}
-// ---------------------------------------------------------------------------
-
 /// Error type for lexer errors.
 /// - NoPatterns: tried to lex with no patterns added.
 /// - InvalidToken(idx): token that doesn't match any pattern
@@ -47,13 +28,13 @@ impl std::fmt::Display for LexerError {
 /// - spec: a vector of (pattern, make_token) tuples, where
 /// 	pattern is a regular expr, and make_token is a function
 /// 	which constructs a token from a match of the pattern.
-pub struct Lexer<'a> {
-    spec: Vec<(&'a Regex, fn(&str) -> Token)>,
+pub struct Lexer<'a, Token> {
+    spec: Vec<(&'a Regex, fn(&'a str) -> Token)>,
 }
 
-impl<'a> Lexer<'a> {
+impl<'a, Token> Lexer<'a, Token> {
     /// Constructs a new Lexer instance with an empty spec
-    pub fn new() -> Lexer<'a> {
+    pub fn new() -> Lexer<'a, Token> {
         Lexer { spec: Vec::new() }
     }
 
@@ -62,7 +43,7 @@ impl<'a> Lexer<'a> {
     pub fn add_pattern(
         &mut self,
         pattern: &'a Regex,
-        make_token: fn(&str) -> Token,
+        make_token: fn(&'a str) -> Token,
     ) {
         self.spec.push((pattern, make_token));
     }

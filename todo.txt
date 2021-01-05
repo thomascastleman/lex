@@ -1,5 +1,6 @@
 Todo.
 
 [x] rewrite so lex() returns a Result<Vec<Token>, LexError>
-[] abstract over Token implementation
+[x] abstract over Token implementation
 [] write tests
+[] docs
