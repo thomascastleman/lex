@@ -1,45 +1,37 @@
 # lex
-A lexer.
+A [lexer](https://en.wikipedia.org/wiki/Lexical_analysis).
 
 ### Usage
-To create a new lexer, use `Lexer::new()`. 
+To create a new lexer, use `Lexer::new()`, providing a vector of `Rule`s which indicate what text patterns you want to match and how you want to turn them into tokens. 
 
-Then, you can add patterns to the lexer, and tell it how you'd like to construct 
-tokens based on those patterns. For instance,
+ For instance,
 ```rust
-let l = Lexer::new();
-
 let num_re = Regex::new(r#"\d+"#).unwrap();
 let name_re = Regex::new(r#"[a-zA-Z][a-zA-Z0-9_]+"#).unwrap();
 let ws_re = Regex::new(r#"\s+"#).unwrap();
 
-l.add_pattern(&num_re, |s| ("number", s));      // highest priority
-l.add_pattern(&name_re, |s| ("name", s));
-l.add_pattern(&ws_re, |s| ("whitespace", s));   // lowest priority
-```
-
-> Note: patterns should be added in order of precedence, with higher priority patterns added first.
-
-Finally, the `lex()` method can be used to tokenize a given string:
-```rust
-let result = l.lex("test 5").unwrap();
-
-assert_eq!(result, vec![
-  ("name", "test"),
-  ("whitespace", " "),
-  ("number", "5")
+let l = lexer::new(vec![
+  Rule::new(&num_re, |s| ("number", s)),      // highest priority
+  Rule::new(&name_re, |s| ("name", s)),
+  Rule::new(&ws_re, |s| ("whitespace", s)),   // lowest priority
 ]);
 ```
 
-> Note: `lex()` returns a `Result`, so remember to check for errors.
+> Note: patterns should be added in order of precedence, with higher priority patterns at the beginning of the rules list.
 
-There are two possible `LexerError`s:
+Finally, the `lex()` method can be used to tokenize a given string:
+```rust
+let stream = l.lex("test 5");
+
+assert_eq!(stream.next(), Some(Ok(("name", "test"))));
+assert_eq!(stream.next(), Some(Ok(("whitespace", " "))));
+assert_eq!(stream.next(), Some(Ok(("number", "5"))));
+assert!(stream.next().is_none());
+```
+
+There is currently only one possible `LexerError`, which indicates a token was encountered which did not match any of the rules in the lexer. 
 ```rust
 enum LexerError {
-    NoPatterns,
     InvalidToken(usize),
 }
 ```
-The `LexerError::NoPatterns` is returned if you attempt to use `lex()` on a lexer that has no patterns added to it.
-
-`LexerError::InvalidToken(index)` is returned if a point in the input is reached at which none of the lexer's patterns match the input. `index` is the index in the input string at which this occurred.
