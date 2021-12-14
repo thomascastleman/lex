@@ -1,7 +1,7 @@
 [package]
 name = "lex"
-version = "0.1.0"
-authors = ["Thomas Castleman <thomas7rex@gmail.com>"]
+version = "1.0.0"
+authors = ["Thomas Castleman <thomascastleman0@gmail.com>"]
 edition = "2021"
 
 [dependencies]
