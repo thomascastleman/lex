@@ -10,7 +10,7 @@ let num_re = Regex::new(r#"\d+"#).unwrap();
 let name_re = Regex::new(r#"[a-zA-Z][a-zA-Z0-9_]+"#).unwrap();
 let ws_re = Regex::new(r#"\s+"#).unwrap();
 
-let l = lexer::new(vec![
+let l = Lexer::new(vec![
   Rule::new(&num_re, |s| ("number", s)),      // highest priority
   Rule::new(&name_re, |s| ("name", s)),
   Rule::new(&ws_re, |s| ("whitespace", s)),   // lowest priority
@@ -19,7 +19,7 @@ let l = lexer::new(vec![
 
 > Note: patterns should be added in order of precedence, with higher priority patterns at the beginning of the rules list.
 
-Finally, the `lex()` method can be used to tokenize a given string:
+Now, the `lex()` method can be used to tokenize a given string:
 ```rust
 let stream = l.lex("test 5");
 
