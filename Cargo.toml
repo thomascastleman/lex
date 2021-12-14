@@ -2,7 +2,7 @@
 name = "lex"
 version = "0.1.0"
 authors = ["Thomas Castleman <thomas7rex@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 regex = "1"
