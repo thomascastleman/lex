@@ -1,34 +1,69 @@
 # lex
 A [lexer](https://en.wikipedia.org/wiki/Lexical_analysis).
 
-### Usage
-To create a new lexer, use `Lexer::new()`, providing a vector of `Rule`s which indicate what text patterns you want to match and how you want to turn them into tokens. 
-
- For instance,
+### Example
 ```rust
-let num_re = Regex::new(r#"\d+"#).unwrap();
-let name_re = Regex::new(r#"[a-zA-Z][a-zA-Z0-9_]+"#).unwrap();
-let ws_re = Regex::new(r#"\s+"#).unwrap();
+let num_re    = Regex::new(r#"\d+"#).unwrap();
+let plus_re   = Regex::new(r#"\+"#).unwrap();
+let str_re    = Regex::new(r#"".*?""#).unwrap();
+let id_re     = Regex::new(r#"[a-zA-Z][a-zA-Z0-9_]*"#).unwrap();
+let ws_re     = Regex::new(r#"\s+"#).unwrap();
+let lparen_re = Regex::new(r#"\("#).unwrap();
+let rparen_re = Regex::new(r#"\)"#).unwrap();
 
-let l = Lexer::new(vec![
-  Rule::new(&num_re, |s| ("number", s)),      // highest priority
-  Rule::new(&name_re, |s| ("name", s)),
-  Rule::new(&ws_re, |s| ("whitespace", s)),   // lowest priority
+// A type representing all possible tokens we expect in the input stream.
+#[derive(Debug, PartialEq, Eq)]
+enum Token {
+    Num(i32),
+    Plus,
+    Str(String),
+    Id(String),
+    Whitespace,
+    LParen,
+    RParen,
+}
+use Token::*;
+
+// Construct a `Lexer` by supplying rules which determine how to convert
+// text that matches each pattern into the token for that pattern.
+let lexer = Lexer::new(vec![
+    Rule::new(&num_re,    |s| Num(s.parse::<i32>().unwrap())),
+    Rule::new(&plus_re,   |_| Plus),
+    Rule::new(&str_re,    |s| Str(s.to_string())),
+    Rule::new(&id_re,     |s| Id(s.to_string())),
+    Rule::new(&ws_re,     |_| Whitespace),
+    Rule::new(&lparen_re, |_| LParen),
+    Rule::new(&rparen_re, |_| RParen),
 ]);
+
+// Lex an input string and collect tokens into a `Vec` (ignoring whitespace).
+// Note that in this example, we don't handle possible errors.
+let tokens: Vec<_> = lexer
+    .lex("(define (f x) (+ x 1))")
+    .map(Result::unwrap)
+    .filter(|t| *t != Whitespace)
+    .collect();
+
+assert_eq!(
+    tokens,
+    vec![
+        LParen,
+        Id("define".into()),
+        LParen,
+        Id("f".into()),
+        Id("x".into()),
+        RParen,
+        LParen,
+        Plus,
+        Id("x".into()),
+        Num(1),
+        RParen,
+        RParen
+    ]
+);
 ```
 
-> Note: patterns should be added in order of precedence, with higher priority patterns at the beginning of the rules list.
-
-Now, the `lex()` method can be used to tokenize a given string:
-```rust
-let stream = l.lex("test 5");
-
-assert_eq!(stream.next(), Some(Ok(("name", "test"))));
-assert_eq!(stream.next(), Some(Ok(("whitespace", " "))));
-assert_eq!(stream.next(), Some(Ok(("number", "5"))));
-assert!(stream.next().is_none());
-```
-
+### Errors
 There is currently only one possible `LexerError`, which indicates a token was encountered which did not match any of the rules in the lexer. 
 ```rust
 enum LexerError {

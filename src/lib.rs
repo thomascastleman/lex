@@ -1,5 +1,69 @@
 //! This crate provides a simple implementation of a [lexer].
 //!
+//! # Example
+//! ```
+//! # use lex::{Rule, Lexer};
+//! # use regex::Regex;
+//! let num_re    = Regex::new(r#"\d+"#).unwrap();
+//! let plus_re   = Regex::new(r#"\+"#).unwrap();
+//! let str_re    = Regex::new(r#"".*?""#).unwrap();
+//! let id_re     = Regex::new(r#"[a-zA-Z][a-zA-Z0-9_]*"#).unwrap();
+//! let ws_re     = Regex::new(r#"\s+"#).unwrap();
+//! let lparen_re = Regex::new(r#"\("#).unwrap();
+//! let rparen_re = Regex::new(r#"\)"#).unwrap();
+//!
+//! // A type representing all possible tokens we expect in the input stream.
+//! #[derive(Debug, PartialEq, Eq)]
+//! enum Token {
+//!     Num(i32),
+//!     Plus,
+//!     Str(String),
+//!     Id(String),
+//!     Whitespace,
+//!     LParen,
+//!     RParen,
+//! }
+//! use Token::*;
+//!
+//! // Construct a `Lexer` by supplying rules which determine how to convert
+//! // text that matches each pattern into the token for that pattern.
+//! let lexer = Lexer::new(vec![
+//!     Rule::new(&num_re,    |s| Num(s.parse::<i32>().unwrap())),
+//!     Rule::new(&plus_re,   |_| Plus),
+//!     Rule::new(&str_re,    |s| Str(s.to_string())),
+//!     Rule::new(&id_re,     |s| Id(s.to_string())),
+//!     Rule::new(&ws_re,     |_| Whitespace),
+//!     Rule::new(&lparen_re, |_| LParen),
+//!     Rule::new(&rparen_re, |_| RParen),
+//! ]);
+//!
+//! // Lex an input string and collect tokens into a `Vec` (ignoring whitespace).
+//! // Note that in this example, we don't handle possible errors.
+//! let tokens: Vec<_> = lexer
+//!     .lex("(define (f x) (+ x 1))")
+//!     .map(Result::unwrap)
+//!     .filter(|t| *t != Whitespace)
+//!     .collect();
+//!
+//! assert_eq!(
+//!     tokens,
+//!     vec![
+//!         LParen,
+//!         Id("define".into()),
+//!         LParen,
+//!         Id("f".into()),
+//!         Id("x".into()),
+//!         RParen,
+//!         LParen,
+//!         Plus,
+//!         Id("x".into()),
+//!         Num(1),
+//!         RParen,
+//!         RParen
+//!     ]
+//! );
+//! ```
+//!
 //! [lexer]: https://en.wikipedia.org/wiki/Lexical_analysis
 
 use regex::Regex;
@@ -26,15 +90,12 @@ impl std::fmt::Display for LexerError {
 /// A [`Rule`] consists of a regular expression for matching a pattern for a
 /// given token and a function (action) capable of producing that token given the
 /// lexeme that matched.
-pub struct Rule<'text, 'pattern, 'action, Token> {
-    pattern: &'pattern Regex,
-    action: Box<dyn Fn(&'text str) -> Token + 'action>,
+pub struct Rule<'a, Token> {
+    pattern: &'a Regex,
+    action: Box<dyn Fn(&'a str) -> Token + 'a>,
 }
 
-impl<'text, 'pattern, 'action, Token> Rule<'text, 'pattern, 'action, Token>
-where
-    Token: 'text,
-{
+impl<'a, Token> Rule<'a, Token> {
     /// Construct a new [`Rule`] for use in a [`Lexer`].
     ///
     /// # Example
@@ -45,9 +106,9 @@ where
     /// ```
     /// If the input was `"50"`, for instance, this rule will match
     /// and produce a token `("number", "50")`.
-    pub fn new<Action>(pattern: &'pattern Regex, action: Action) -> Self
+    pub fn new<Action>(pattern: &'a Regex, action: Action) -> Self
     where
-        Action: Fn(&'text str) -> Token + 'action,
+        Action: Fn(&'a str) -> Token + 'a,
     {
         Rule {
             pattern,
@@ -58,11 +119,11 @@ where
 
 /// A [`Lexer`] uses rules to break up a given string into tokens. The exact
 /// type used as `Token` is up to the user.
-pub struct Lexer<'text, 'pattern, 'action, Token> {
-    rules: Vec<Rule<'text, 'pattern, 'action, Token>>,
+pub struct Lexer<'a, Token> {
+    rules: Vec<Rule<'a, Token>>,
 }
 
-impl<'text, 'pattern, 'action, Token> Lexer<'text, 'pattern, 'action, Token> {
+impl<'a, Token> Lexer<'a, Token> {
     /// Constructs a new [`Lexer`] instance from a given sequence of rules.
     ///
     /// # Example
@@ -78,9 +139,7 @@ impl<'text, 'pattern, 'action, Token> Lexer<'text, 'pattern, 'action, Token> {
     /// # Panics
     /// This function panics if an empty vector of rules is supplied, as the [`Lexer`]
     /// needs at least one rule to operate.
-    pub fn new(
-        rules: Vec<Rule<'text, 'pattern, 'action, Token>>,
-    ) -> Lexer<'text, 'pattern, 'action, Token> {
+    pub fn new(rules: Vec<Rule<'a, Token>>) -> Lexer<'a, Token> {
         assert!(!rules.is_empty(), "lexer must have at least one rule");
         Lexer { rules }
     }
@@ -117,8 +176,8 @@ impl<'text, 'pattern, 'action, Token> Lexer<'text, 'pattern, 'action, Token> {
     /// ```
     pub fn lex<'lex>(
         &'lex self,
-        text: &'text str,
-    ) -> TokenStream<'lex, 'text, 'pattern, 'action, Token> {
+        text: &'a str,
+    ) -> TokenStream<'lex, 'a, Token> {
         TokenStream {
             lexer: self,
             current_index: 0,
@@ -128,20 +187,13 @@ impl<'text, 'pattern, 'action, Token> Lexer<'text, 'pattern, 'action, Token> {
 }
 
 /// [`TokenStream`] implements an iterator over user-defined `Token`s.
-pub struct TokenStream<'lex, 'text, 'pattern, 'action, Token>
-where
-    Token: 'text,
-{
-    lexer: &'lex Lexer<'text, 'pattern, 'action, Token>,
+pub struct TokenStream<'lex, 'a, Token> {
+    lexer: &'lex Lexer<'a, Token>,
     current_index: usize,
-    rest: &'text str,
+    rest: &'a str,
 }
 
-impl<'lex, 'text, 'pattern, 'action, Token> Iterator
-    for TokenStream<'lex, 'text, 'pattern, 'action, Token>
-where
-    Token: 'text,
-{
+impl<'lex, 'a, Token> Iterator for TokenStream<'lex, 'a, Token> {
     type Item = Result<Token, LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {
